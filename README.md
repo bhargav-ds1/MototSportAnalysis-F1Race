@@ -1,2 +1,2 @@
-# MototSportAnalysis-F1Race
-This project is to analyse data for F1 Races to present the analysis to a sports magazine
+# MotorSportArticle-F1Race
+This work is related to Data analysis performed about the F1 races for an sports magazine article

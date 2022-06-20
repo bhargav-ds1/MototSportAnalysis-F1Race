@@ -1,0 +1,278 @@
+---
+title: "Visualisation of factors on excitement index calculated using youtube comments of a race."
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+```{r}
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(gridExtra)
+```
+
+---
+In this R program we use the dataset which contains data collected from the 
+Ergast developer API for F1 races. and the excitement index calculated using the
+positive and negative sentiments of the comments that are collected from youtube
+
+The youtube comments are extracted using youtube Data V3 api.
+
+The Stanford CoreNLP is used to get the sentiments for the extracted comments.
+
+postiveSentiment in a comment is calculated as the ratio of number of positive 
+sentences and total sentences in a comment.
+
+negativeSentiment in a comment is calculated as the ratio of number of negative
+sentiment sentences and total sentences in a comment.
+
+All the positiveSentiments and negativeSentiments for all comments of a 
+particular race are summed to give totalpos and totalneg for a particular race.
+
+As not all extracted comments lead to a positive or negative sentiment we keep 
+track of number of comments which result in a positive or negative sentiment as
+number of useful comments.
+
+And finally the "Excitement index" is calculated as the ratio between 
+(totalpos+totalneg) and (number of useful comments).
+
+We use this dataset to visualize the effects of 3 variables namely 
+number of overtakes(novertakes), proportion of unfinished drivers
+(unfin/totaldrivers) - the drivers who started the race but could not finish due
+to various reasons and the weather of the race(wetweather) - F1 races are 
+declared wet weather races if the weather conditions are wet/rainy/damp on the 
+calculated "Excitement index".
+---
+
+```{r}
+datax = read.csv("../Data/youtube_sentiments.csv")
+colnames(datax)
+
+```
+
+
+```{r}
+ggplot(data = datax,aes(x=Excitement_index,y= novertakes))+
+  geom_point(aes(color=factor(wetweather)))+scale_color_manual(
+    name= "Condition of track",
+                                                          breaks = c(0,1),
+                                                          values = c("orange","blue"),
+                                                          labels= c("Normal","Wet"),
+                                                          )+ylab("Number of overtakes in a race")+
+  xlab("Excitement index of race")+
+  geom_smooth(method = "lm", color = "red", se=FALSE)
+```
+```{r}
+ggplot(data = datax,aes(x=Excitement_index,y= unfin))+
+  geom_point(aes(color=factor(wetweather)))+scale_color_manual(
+    name= "Condition of track",
+                                                          breaks = c(0,1),
+                                                          values = c("orange","blue"),
+                                                          labels= c("Normal","Wet"),
+                                                          )+ylab("NUmber of unfinished drivers")+
+  xlab("Excitement index of race")+geom_smooth(method = "lm", color = "red", se=FALSE)
+```
+
+
+```{r}
+ggplot(data = datax,aes(x=Excitement_index,y= unfin/totaldrivers))+
+  geom_point(aes(color=factor(wetweather)))+scale_color_manual(
+    name= "Condition of track",
+                                                          breaks = c(0,1),
+                                                          values = c("orange","blue"),
+                                                          labels= c("Normal","Wet"),
+                                                          )+ylab("Proportion of unfinished drivers")+
+  xlab("Rating of race")+geom_smooth(method = "lm", color = "red", se=FALSE)
+```
+
+
+We perform a t-test to check if there is enough statistical significance to 
+support the hypothesis that the fan ratings do not differ for wet weather 
+and normal weather races.
+
+```{r}
+t.test(datax[datax$wetweather == 0,]$Excitement_index,datax[datax$wetweather == 1,]$Excitement_index,alternative = 'l')
+```
+
+Based on the results we can see that the null hypothesis which states that there 
+no difference in fan ratings for wet weather and normal weather races can be 
+rejected at a 0.05 significance level.
+
+
+```{r}
+datax$wetweather <- as.factor(datax$wetweather)
+mu <- datax %>% group_by(wetweather) %>% summarise_at(vars(Excitement_index),list(name=mean))
+mu
+```
+```{r}
+ggplot(data=datax,aes(x=Excitement_index,fill=factor(wetweather)))+geom_density(alpha=0.5)+
+  scale_fill_manual(
+    name= "Condition of track",
+    values = c("orange","blue"),labels=c("Normal","Wet")
+  )+xlab("Excitement index of race")+
+  ylab("Density")+
+  geom_vline(data=mu,aes(xintercept=name,color = wetweather),linetype="dashed",show.legend=FALSE)
+  #annotate(geom="text",label="p-value=",x=5,y=0.57)
+```
+
+```{r}
+ggplot(data = datax,aes(y=Excitement_index,x= wetweather))+
+  geom_boxplot(aes(group=wetweather,fill=factor(wetweather)))+scale_fill_manual(
+    name= "Condition of track",
+    values = c("orange","blue"),labels=c("Normal","Wet")
+  )+xlab("Condition of Track")+
+  ylab("Excitement index of race")
+  #annotate(geom="text",label="p-value=0.0000001196",x=2.2,y=9.9)
+```
+
+
+```{r}
+ggplot(data = datax,aes(sample=Excitement_index,color=factor(wetweather)))+
+  stat_qq()+scale_color_manual(breaks = c(0,1),name= "Condition of track",
+                                                          values = c("orange","blue"),
+                                                          labels= c("Normal","Wet"),
+                                                          )+
+  geom_hline(yintercept = mean(datax[datax$wetweather==0,]$Excitement_index),color="orange")+
+  geom_hline(yintercept = mean(datax[datax$wetweather==1,]$Excitement_index),color="blue")+
+  ylab("Quantiles of race Excitement index")+xlab("Quantiles of normal distribution")
+
+```
+```{r}
+dataxx <- datax %>% mutate(novertakes= (novertakes-mean(novertakes))/sd(novertakes))%>% 
+  mutate(Excitement_index = (Excitement_index-mean(Excitement_index))/sd(Excitement_index)) %>% mutate(unfin = (unfin-mean(unfin))/sd(unfin))
+lin=lm(Excitement_index ~ novertakes+unfin+wetweather,data = dataxx)
+summary(lin)
+```
+```{r}
+
+name = c("Intercept","Number of overtakes","Unfinished drivers","wet weather")
+coef = lin$coefficients
+conf1 = confint(lin)[,1]
+conf2 = confint(lin)[,2]
+df1 <- data.frame(name, coef, conf1, conf2)
+df1
+```
+```{r}
+ggplot(data=df1, aes(x=coef,y=name))+geom_errorbar(width = .1, aes(xmin= conf1, xmax=conf2))+
+  geom_point(shape= 21, size =3, fill="blue")+
+  geom_vline(xintercept = 0, linetype="dashed", color="red")+xlab("Coefficient of linear regression")+
+  ylab("Regressors")
+```
+
+```{r}
+
+# Create a dataframe only including the wet weather races
+wet_weather_races <- datax[datax$wetweather==1,]
+
+# Average total pos neg comments for wet weather races
+avg_pos_neg_comments_wet <- (sum(wet_weather_races$totalpos)+
+                              sum(wet_weather_races$totalneg))/
+  sum(wet_weather_races$numberofusefulcomments)
+
+# Average total pos neg comments for normal races
+avg_pos_neg_comments_normal <-
+  (sum(datax[datax$wetweather==0,]$totalpos)+
+     sum(datax[datax$wetweather==0,]$totalneg))/
+  sum(datax[datax$wetweather==0,]$numberofusefulcomments)
+
+# Average viewcount for wet weather races
+avg_viewcount_wet <- sum(wet_weather_races$viewcount)/dim(wet_weather_races)[1]
+
+# Average viewcount for normal races
+avg_viewcount_normal <- 
+  sum(datax[datax$wetweather==0,]$viewcount)/
+  dim(datax[datax$wetweather==0,])[1]
+
+
+# Average likecount wet weather races
+avg_likecount_wet <- sum(datax$likecount)/dim(datax)[1]
+
+# Average likecount normal races
+avg_likecount_normal <- 
+  sum(datax[datax$wetweather==0,]$likecount)/
+  dim(datax[datax$wetweather==0,])[1]
+
+# Average dislikecount wet weather races
+avg_dislikecount_wet <- sum(datax$dislikecount)/dim(datax)[1]
+
+# Average dislikecount normal races
+avg_dislikecount_normal <- 
+  sum(datax[datax$wetweather==0,]$dislikecount)/
+  dim(datax[datax$wetweather==0,])[1]
+
+# Creating a dataframe with all the KPIs, so that they can be displayed in a
+# plot.
+comparison_wet_normal <- data.frame(c("Nass", "Normal", 
+                                      "Nass", "Normal",
+                                      "Nass", "Normal", 
+                                      "Nass", "Normal"))
+
+names(comparison_wet_normal) <- "race_type"
+
+comparison_wet_normal$values <- c(avg_pos_neg_comments_wet, 
+                                  avg_pos_neg_comments_normal, 
+                                  avg_viewcount_wet, 
+                                  avg_viewcount_normal,
+                                  avg_likecount_wet, 
+                                  avg_likecount_normal, 
+                                  avg_dislikecount_wet,
+                                  avg_dislikecount_normal)
+
+comparison_wet_normal$column <- c("pos_neg_comments", "pos_neg_comments", 
+                                  "viewcount", "viewcount",
+                                  "likecount", "likecount",
+                                  "dislike_count", "dislike_count")
+
+
+# Create a plot for the viewcount
+plot1 <- ggplot(data=comparison_wet_normal[comparison_wet_normal$column=="viewcount",],
+                aes(x=column, y=values, fill=race_type)) + 
+  geom_bar(stat="identity", position=position_dodge()) + scale_fill_manual(values=c("#B5074A", "#432D57")) +
+  theme(legend.position = "none", axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + xlab("Durchschnittliche Zuschaueranzahl") + ylab("")
+
+# Create a plot for likecount
+plot2 <- ggplot(data=comparison_wet_normal[comparison_wet_normal$column=="likecount",],
+                aes(x=column, y=values, fill=race_type)) + 
+  geom_bar(stat="identity", position=position_dodge()) + scale_fill_manual(values=c("#B5074A", "#432D57")) +
+  theme(legend.position = "none", axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + xlab("Durchschnittliche Anzahl an Likes") + ylab("")
+
+# Create a plot for dislike count
+plot3 <- ggplot(data=comparison_wet_normal[comparison_wet_normal$column=="dislike_count",],
+                aes(x=column, y=values, fill=race_type)) + 
+  geom_bar(stat="identity", position=position_dodge()) + scale_fill_manual(values=c("#B5074A", "#432D57")) +
+  theme(legend.position = "none", axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + xlab("Durchschnittliche Anzahl an Dislikes") + ylab("")
+
+# Create a plot for average number of positive/negative comments
+plot4 <- ggplot(data=comparison_wet_normal[comparison_wet_normal$column=="pos_neg_comments",], 
+                aes(x=column, y=values, fill=race_type)) + 
+  geom_bar(stat="identity", position=position_dodge()) + scale_fill_manual(values=c("#B5074A", "#432D57")) +
+  theme(legend.position = "none", axis.text.x = element_blank(), axis.ticks.x = element_blank())  +
+  xlab("Anteil pos./neg. Kommentare") + ylab("")
+
+# Create a legend for the plot
+plot_legend <- ggplot(data=comparison_wet_normal[comparison_wet_normal$column=="pos_neg_comments",] 
+                      ,aes(x=column, y=values, fill=race_type)) + 
+  geom_bar(stat="identity",                                                 
+           position=position_dodge()) + scale_fill_manual(values=c("#B5074A", "#432D57")) +
+  theme(legend.position = "right", legend.direction = "horizontal", legend.title = element_blank())
+
+# Some magic for creating a single legend for all the plots together
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+shared_legend <- extract_legend(plot_legend)
+
+# Create a grid with all the plots together and add the legend created above
+grid.arrange(arrangeGrob(plot1,plot2,plot3,plot4, ncol = 2),
+             shared_legend, nrow = 2, heights = c(10, 1))
+
+```

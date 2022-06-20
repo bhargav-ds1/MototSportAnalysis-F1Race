@@ -1,0 +1,240 @@
+---
+title: "Visualisation of factors on ratings of a race."
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+```{r}
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(jpeg)
+library(png)
+library(grid)
+```
+
+---
+In this R program we use the dataset which contains data collected from the 
+Ergast developer API for F1 races. and the fan ratings collected from a kaggle
+dataset. We use this dataset to visualize the effects of 3 variables namely 
+number of overtakes(novertakes), number of unfinished drivers(unfin) - the 
+drivers who started the race but could not finish due to various reasons and 
+the weather of the race(wetweather) - F1 races are declared wet weather races if
+the weather conditions are wet/rainy/damp.
+---
+
+```{r}
+datax = read.csv("../Data/aggregated_basedOnFanRatings.csv")
+colnames(datax)
+```
+
+
+```{r}
+
+image=jpeg::readJPEG('Mercedes2.jpg')
+ii=0.8
+image <- matrix(rgb(image[,,1]*ii,image[,,2]*ii,image[,,3]*ii), nrow=dim(image)[1])
+
+ggplot(data = datax)+
+  theme_bw()+
+  annotation_custom(rasterGrob(image = image,width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                               -Inf, Inf, -Inf, Inf)+ylab("Number of wins")+
+  xlab("Year")+
+  geom_bar(aes(x=factor(Year),fill=factor(constructorWon)),position = 
+             'stack',stat = 'count',alpha=0.7)+
+  scale_fill_manual(
+    name= "Constructor",breaks = c(1,2,6,9,23,131),values = 
+      c('orange','Grey','yellow2','red','olivedrab2','coral'),
+      labels= c('McLaren','BMW Sauber','Ferrari','Red Bull','Brawn','Mercedes'))
+  
+  
+```
+```{r}
+image=jpeg::readJPEG('Mercedes2.jpg')
+ii=0.8
+image <- matrix(rgb(image[,,1]*ii,image[,,2]*ii,image[,,3]*ii), nrow=dim(image)[1])
+
+ggplot(data = datax)+
+  theme_bw()+
+  annotation_custom(rasterGrob(image = image,width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                               -Inf, Inf, -Inf, Inf)+ylab("Number of races")+
+  xlab("Year")+
+  geom_bar(aes(x=factor(Year),fill=factor(wetweather)),position = 
+             'stack',stat = 'count',alpha=0.7)+
+  scale_fill_manual(
+    name= "Type of race",breaks = c(0,1),values = 
+      c('orange','steelblue1'),
+      labels= c('Normal weather','Wet weather'))
+
+
+```
+
+
+
+
+```{r}
+image=png::readPNG('cup1.png')
+ii=0.8
+image <- matrix(rgb(image[,,1]*ii,image[,,2]*ii,image[,,3]*ii,image[,,4]), nrow=dim(image)[1])
+
+databar = as.data.frame(table(datax$constructorWon))
+databar$constructor <- c('McLaren','BMW Sauber','Ferrari','Red Bull','Brawn','Mercedes')
+
+colors1 <- c('black','gold3','black','red','gold3','white')
+colorss <- c('orange','Grey','yellow','white','white','grey27')
+ggplot(data = databar,aes(x=reorder(Var1,Freq),y=Freq))+theme_bw()+
+  annotation_custom(rasterGrob(image = image,width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                               -Inf, Inf, -Inf, Inf)+
+  geom_bar(stat="identity",fill=colorss,color='black',alpha=0.8)+xlab("Constructors")+
+  ylab("Number of wins")+
+  geom_text(aes(label = constructor,y=1),fontface=2,color= colors1,angle=90,hjust=c(0.05,0,-0.8,-2,-0.4,-2))+
+  theme_bw()+theme(axis.text.x = element_blank(),axis.text.y = element_blank(),
+                               axis.ticks = element_blank())
+```
+
+
+```{r}
+image=jpeg::readJPEG('rain1.jpg')
+ii=0.5
+image <- matrix(rgb(image[,,1]*ii,image[,,2]*ii,image[,,3]*ii), nrow=dim(image)[1])
+ggplot(data = datax,aes(x=RATING,y= novertakes))+theme_bw()+
+  annotation_custom(rasterGrob(image = image,width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                               -Inf, Inf, -Inf, Inf)+
+  geom_point(aes(color=factor(wetweather)),alpha=3)+scale_color_manual(
+    name= "Condition of track",
+                                                          breaks = c(0,1),
+                                                          values = c("orange","steelblue1"),
+                                                          labels= c("Normal","Wet"),
+                                                          )+ylab("Number of overtakes in a race")+
+  xlab("Rating of race")+
+  geom_smooth(method = "lm", color = "red", se=FALSE)
+```
+```{r}
+image = jpeg::readJPEG("unfinished5.jpg")
+ggplot(data = datax,aes(x=RATING,y= unfin))+theme_bw()+
+  annotation_custom(rasterGrob(image = image,width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                               -Inf, Inf, -Inf, Inf)+
+  geom_point(aes(color=factor(wetweather)),alpha=3)+scale_color_manual(
+    name= "Condition of track",
+                                                          breaks = c(0,1),
+                                                          values = c("orange","steelblue1"),
+                                                          labels= c("Normal","Wet"),
+                                                          )+ylab("Number of unfinished drivers")+
+  xlab("Rating of race")+geom_smooth(method = "lm", color = "red", se=FALSE)
+```
+
+
+```{r}
+image = jpeg::readJPEG("unfinished5.jpg")
+ggplot(data = datax,aes(x=RATING,y= unfin/totaldrivers))+theme_bw()+
+  annotation_custom(rasterGrob(image = image,width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                               -Inf, Inf, -Inf, Inf)+
+  geom_point(aes(color=factor(wetweather)))+scale_color_manual(
+    name= "Condition of track",
+                                                          breaks = c(0,1),
+                                                          values = c("orange","steelblue2"),
+                                                          labels= c("Normal","Wet"),
+                                                          )+ylab("Proportion of unfinished drivers")+
+  xlab("Rating of race")+geom_smooth(method = "lm", color = "red", se=FALSE)
+```
+
+
+We perform a t-test to check if there is enough statistical significance to 
+support the hypothesis that the fan ratings do not differ for wet weather 
+and normal weather races.
+
+```{r}
+t.test(datax[datax$wetweather == 0,]$RATING,datax[datax$wetweather == 1,]$RATING,alternative = 'l')
+```
+
+Based on the results we can see that the null hypothesis which states that there 
+no difference in fan ratings for wet weather and normal weather races can be 
+rejected at a 0.05 significance level.
+
+
+```{r}
+datax$wetweather <- as.factor(datax$wetweather)
+mu <- datax %>% group_by(wetweather) %>% summarise_at(vars(RATING),list(name=mean))
+mu
+```
+```{r}
+image = jpeg::readJPEG('rain2.jpg')
+ggplot(data=datax,aes(x=RATING,fill=factor(wetweather)))+theme_bw()+
+  annotation_custom(rasterGrob(image = image,width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                               -Inf, Inf, -Inf, Inf)+geom_density(alpha=0.7)+
+  scale_fill_manual(
+    name= "Condition of track",
+    values = c("orange","steelblue4"),labels=c("Normal","Wet")
+  )+xlab("Rating of race")+
+  ylab("Density")+
+  geom_vline(data=mu,aes(xintercept=name,color = wetweather),alpha=2,linetype="twodash",size=1.3,show.legend=FALSE)+
+  annotate(geom="text",label="p-value=<0.001",x=5,y=0.57)
+```
+
+```{r}
+image = jpeg::readJPEG('rain2.jpg')
+ggplot(data = datax,aes(y=RATING,x= wetweather))+
+  annotation_custom(rasterGrob(image = image,width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                               -Inf, Inf, -Inf, Inf)+theme_bw()+
+  geom_boxplot(aes(group=wetweather,fill=factor(wetweather)),alpha=1.5)+scale_fill_manual(
+    name= "Condition of track",
+    values = c("orange","steelblue2"),labels=c("Normal","Wet")
+  )+xlab("Condition of Track")+
+  ylab("Rating of race")+
+  annotate(geom="text",label="p-value=<0.01",x=1.3,y=9.3)
+```
+
+
+```{r}
+image = jpeg::readJPEG('rain3.jpg')
+ggplot(data = datax,aes(sample=RATING,color=factor(wetweather)))+annotation_custom(rasterGrob(image = image,width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                               -Inf, Inf, -Inf, Inf)+theme_bw()+
+  stat_qq()+scale_color_manual(breaks = c(0,1),name= "Condition of track",
+                                                          values = c("orange","steelblue1"),
+                                                          labels= c("Normal","Wet"),
+                                                          )+
+  geom_hline(yintercept = mean(datax[datax$wetweather==0,]$RATING),color="orange")+
+  geom_hline(yintercept = mean(datax[datax$wetweather==1,]$RATING),color="steelblue2")+
+  ylab("Quantiles of race rating")+xlab("Quantiles of normal distribution")
+
+```
+```{r}
+dataxx <- datax %>% mutate(novertakes= (novertakes-mean(novertakes))/sd(novertakes))%>% 
+  mutate(RATING = (RATING-mean(RATING))/sd(RATING)) %>% mutate(unfin = (unfin-mean(unfin))/sd(unfin))
+lin=lm(RATING ~ novertakes+unfin+wetweather,data = dataxx)
+summary(lin)
+```
+```{r}
+
+name = c("Intercept","Number of overtakes","Unfinished drivers","wet weather")
+coef = lin$coefficients
+conf1 = confint(lin)[,1]
+conf2 = confint(lin)[,2]
+df1 <- data.frame(name, coef, conf1, conf2)
+df1
+```
+```{r}
+ggplot(data=df1, aes(x=coef,y=name))+geom_errorbar(width = .1, aes(xmin= conf1, xmax=conf2))+
+  geom_point(shape= 21, size =3, fill="blue")+
+  geom_vline(xintercept = 0, linetype="dashed", color="red")+xlab("Coefficient of linear regression")+
+  ylab("Regressors")
+```
+```{r}
+ggplot(data=df1, aes(x=coef,y=reorder(name,coef)))+geom_bar(stat = 'identity',fill=c("red3",'green2','red2','green3'))+
+  geom_point(shape= 21, size =3, fill="blue")+
+  geom_vline(xintercept = 0, linetype="dashed", color="red")+xlab("Coefficient of linear regression")+
+  ylab("Regressors")
+```
+
